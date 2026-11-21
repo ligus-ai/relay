@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -34,19 +35,17 @@ func Main() {
 	args := os.Args[1:]
 	if len(args) > 0 {
 		switch args[0] {
-		case "keygen":
-			fatalIf(cmdKeygen())
-			return
-		case "issue":
-			fatalIf(cmdIssue(args[1:]))
-			return
-		case "bootstrap-agent":
-			fatalIf(cmdBootstrapAgent(args[1:]))
-			return
 		case "help", "--help", "-h":
-			printUsage()
-			return
+			exitWith(cmdHelp(args[1:], os.Stdout))
 		}
+		cmd, ok := commands[args[0]]
+		if !ok {
+			exitWith(usageErrorf("unknown command %q (the server takes no arguments; try `langstroth-relay help`)", args[0]))
+		}
+		if wantsHelp(args[1:]) {
+			exitWith(cmdHelp([]string{args[0]}, os.Stdout))
+		}
+		exitWith(cmd(args[1:]))
 	}
 
 	// Before anything reads a setting: a variable under a name from before
@@ -253,6 +252,7 @@ func runPrune(what string, fn func() (int64, error)) {
 
 // daysEnv reads a non-negative day count from env, else the default (0 disables).
 func daysEnv(name string, def int) time.Duration {
+	observeDefault(name, float64(def))
 	d := def
 	if v := getenv(name); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
@@ -260,6 +260,35 @@ func daysEnv(name string, def int) time.Duration {
 		}
 	}
 	return time.Duration(d) * 24 * time.Hour
+}
+
+// commands are the subcommands; no argument runs the server.
+var commands = map[string]func(args []string) error{
+	"keygen": func(args []string) error {
+		if len(args) > 0 {
+			return usageErrorf("keygen takes no arguments")
+		}
+		return cmdKeygen()
+	},
+	"issue":           cmdIssue,
+	"bootstrap-agent": cmdBootstrapAgent,
+	"check":           func(args []string) error { return cmdCheck(args, os.Stdout) },
+}
+
+// exitWith ends a subcommand: 0 on success, 2 for a usage error, else 1.
+func exitWith(err error) {
+	switch {
+	case err == nil:
+		os.Exit(exitOK)
+	case errors.Is(err, errChecksFailed):
+		os.Exit(exitFailed) // the report already said why
+	case errors.Is(err, errUsage):
+		fmt.Fprintf(os.Stderr, "langstroth-relay: %v\n", err)
+		os.Exit(exitUsage)
+	default:
+		fmt.Fprintf(os.Stderr, "langstroth-relay: %v\n", err)
+		os.Exit(exitFailed)
+	}
 }
 
 func fatalIf(err error) {

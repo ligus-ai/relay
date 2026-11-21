@@ -102,7 +102,18 @@ func (c *concurrencyLimiter) acquire() (release func(), ok bool) {
 	return func() { once.Do(func() { c.cur.Add(-1) }) }, true
 }
 
+// noteDefault, when set (tests only), sees the default each numeric
+// setting falls back to, so settings_test.go can compare it with the help.
+var noteDefault atomic.Pointer[func(name string, def float64)]
+
+func observeDefault(name string, def float64) {
+	if f := noteDefault.Load(); f != nil {
+		(*f)(name, def)
+	}
+}
+
 func envFloat(name string, def float64) float64 {
+	observeDefault(name, def)
 	if v := getenv(name); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			return f
@@ -112,6 +123,7 @@ func envFloat(name string, def float64) float64 {
 }
 
 func envInt64(name string, def int64) int64 {
+	observeDefault(name, float64(def))
 	if v := getenv(name); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 			return n

@@ -5,6 +5,10 @@ Start with the [README](../README.md) for what the relay is and how to deploy it
 
 ## Configuration (env)
 
+`langstroth-relay help config` prints every setting below from the binary
+(a test keeps that list in step with the code), and `langstroth-relay check`
+validates a configuration without serving.
+
 Settings are read only under their `LANGSTROTH_RELAY_*` names. The relay
 refuses to start while any `HIVE_RELAY_*` or `LIGUS_RELAY_*` variable is set
 (except the Ligus client's `LIGUS_RELAY_URL`, which the relay never read): the

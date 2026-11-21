@@ -3,7 +3,7 @@
 ## v0.3.2 (unreleased)
 
 `/v1` and `hrt1` request and response formats are unchanged (byte-identical
-to v0.3.1); only who roster mode authorizes changed.
+to v0.3.1); what changed is who roster mode authorizes and the command line.
 
 ### Fixed
 
@@ -16,6 +16,30 @@ to v0.3.1); only who roster mode authorizes changed.
   writes. Unchanged: key rotations (`POST .../keyring`) still need
   Contributor, roster and invite management still needs Admin, a blob delete
   still needs its uploader or an Admin, and a non-member is refused as before.
+
+### Added
+
+- **The binary documents itself.** `langstroth-relay help` covers every
+  command, flag, exit code and the refuse-to-start rules (including the
+  `HIVE_RELAY_*` and `LIGUS_RELAY_*` names), and `langstroth-relay help
+  <topic>` adds `config` (every `LANGSTROTH_RELAY_*` variable with its default
+  and meaning), `deploy` (one-shot Docker, Helm OCI chart, Fly.io and systemd
+  sequences), `membership`, `tunnel`, `push`, `backup` and `troubleshooting`.
+  `<command> --help` works for every command. Tests keep the variable list in
+  step with the code: every variable the code reads must be listed, every
+  listed one must be read, and numeric defaults must match.
+- **`langstroth-relay check [--json] [--url URL]`** runs the startup checks
+  without serving (old names, secret files, access gate, tenancy, removed
+  settings, routes, push, storage, metrics token) and, with `--url`, probes a
+  running relay's `/v1/health` and `/v1/tunnel/info`. `--json` prints one
+  object in the `deploy/agent` shape (`{"tool","ok","checks":[...]}`). Exit 0
+  when nothing failed, 1 when a check failed.
+
+### Changed
+
+- An unknown command or flag now exits 2 with a message instead of being
+  ignored (an unknown first argument used to start the server). `issue` and
+  `bootstrap-agent` exit 2 for a missing required flag. Help goes to stdout.
 
 ## v0.3.1
 

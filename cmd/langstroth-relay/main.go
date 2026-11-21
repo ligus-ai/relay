@@ -6,6 +6,8 @@
 // Run the server (default):   langstroth-relay
 // Generate an issuer keypair: langstroth-relay keygen
 // Mint an access token:       langstroth-relay issue --key <priv-hex> --sub <id> [...]
+// Check a configuration:      langstroth-relay check [--json] [--url URL]
+// Everything else:            langstroth-relay help [topic]
 package main
 
 import "github.com/langstroth-ai/langstroth-relay"

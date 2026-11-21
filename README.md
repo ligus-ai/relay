@@ -37,7 +37,13 @@ creates a workspace picks a relay.
 ```sh
 go run ./cmd/langstroth-relay        # serves http on 0.0.0.0:8443, in memory
 curl localhost:8443/v1/health        # ok
+go run ./cmd/langstroth-relay help   # every command, setting and help topic
 ```
+
+The binary documents itself: `langstroth-relay help config` lists every
+setting with its default, `langstroth-relay help deploy` has one-shot
+Docker, Helm, Fly.io and systemd sequences, and `langstroth-relay check
+--json` checks a configuration (and, with `--url`, a running relay).
 
 Keep data across restarts with `LANGSTROTH_RELAY_DATA_DIR=/some/dir`
 (memory plus a JSON snapshot), or point several processes' storage at
