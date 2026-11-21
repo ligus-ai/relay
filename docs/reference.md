@@ -33,7 +33,7 @@ names (`LANGSTROTH_RELAY_TRUSTED_PROXIES`), with IPv6 keyed on its /64.
 | `LANGSTROTH_RELAY_GITHUB_ROUTES` | off | **Deprecated, removed in v0.4.** `on`: register the GitHub social routes (directory, account, friends) for older clients; every response then carries a `Deprecation` header. `LANGSTROTH_RELAY_GITHUB_SOCIAL=1` is accepted too. See [GitHub social routes](#github-social-routes-deprecated-off-by-default) |
 | `LANGSTROTH_RELAY_FRIEND_CAP` | none | max accepted friends per account (GitHub routes only) |
 | `LANGSTROTH_RELAY_INVITE_REQUIRE_FRIEND` | off | `1`: `POST /v1/account/invites` only reaches existing friends (GitHub routes only) |
-| `LANGSTROTH_RELAY_TRUSTED_PROXIES` | empty | comma-separated CIDRs/IPs of reverse proxies whose forwarding header names the client (empty = use the TCP peer, ignore every forwarding header). Set it behind an ingress or load balancer, or every client shares one rate-limit bucket. On Fly.io (`FLY_APP_NAME` set) with this unset, `Fly-Client-IP` is used |
+| `LANGSTROTH_RELAY_TRUSTED_PROXIES` | empty | comma-separated CIDRs/IPs of reverse proxies whose forwarding header names the client (empty = use the TCP peer, ignore every forwarding header). Set it behind an ingress or load balancer, or every client shares one rate-limit bucket. Some platforms' edges are recognized when it is unset; see [Running on a PaaS](deploy.md#running-on-a-paas) |
 | `LANGSTROTH_RELAY_CLIENT_IP_HEADER` | `X-Forwarded-For` | header read from a trusted proxy (walked right to left past trusted hops), or a single-address header such as `X-Real-IP` |
 
 **Storage, retention and size bounds**
@@ -179,10 +179,11 @@ Bound storage instead with the room quotas (`507` refusals, never eviction),
 ## Community limits
 
 For a relay anyone may use (a public relay on one machine). Every limit is
-off by default; `deploy/fly.toml` has a commented community profile with
-values for one small VM, and the Helm chart sets them under `limits.*`. The
-project's own public relay runs that profile on Postgres; its deploy
-(`.github/workflows/deploy.yml`) passes it as `--env` flags.
+off by default; `deploy/compose/langstroth-relay/.env.example` has a
+commented community profile with values for one small machine (see
+[deploy.md](deploy.md#a-relay-for-the-public)), and the Helm chart sets them
+under `limits.*`. The project's community relay runs that profile on
+Postgres.
 
 - **Quotas refuse, they don't evict.** A Ligus client rebuilds a workspace by
   folding its whole envelope log from the founder's seed, and the relay
@@ -674,9 +675,10 @@ for 30 days are forgotten) and an APNs `PushSender` through
 
 ## Extending (seams)
 
-This package is a complete relay on its own. It also exposes extension points
-(see `seams.go`) so a downstream build can add custom behavior via
-`New(Options{...})` without forking.
+The relay package (`internal/relay`) is a complete relay on its own. It also
+exposes extension points (see `internal/relay/seams.go`) so another binary
+under `cmd/` in this module can add custom behavior via `New(Options{...})`.
+The package is internal: code outside this module can't import it.
 
 Seams:
 

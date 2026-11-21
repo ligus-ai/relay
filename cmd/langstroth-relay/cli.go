@@ -1,4 +1,4 @@
-package relay
+package main
 
 import (
 	"bytes"
@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/langstroth-ai/langstroth-relay/internal/relay"
 )
 
 // Operator subcommands. The serving relay only ever *verifies* tokens (with the
@@ -60,7 +62,7 @@ func cmdKeygen() error {
 func cmdIssue(args []string) error {
 	var (
 		keyHex  string
-		claims        = TokenClaims{Caps: []string{}}
+		claims        = relay.TokenClaims{Caps: []string{}}
 		expDays int64 = -1
 	)
 	for i := 0; i < len(args); i++ {
@@ -103,7 +105,7 @@ func cmdIssue(args []string) error {
 		}
 	}
 
-	priv, ok := parseSigningKey(keyHex)
+	priv, ok := relay.ParseSigningKey(keyHex)
 	if !ok {
 		return fmt.Errorf("--key must be a 64-char hex Ed25519 seed (from `keygen`)")
 	}
@@ -113,7 +115,7 @@ func cmdIssue(args []string) error {
 	if expDays >= 0 {
 		claims.Exp = uint64(time.Now().Unix()) + uint64(expDays)*86_400
 	}
-	fmt.Println(issueToken(priv, claims))
+	fmt.Println(relay.IssueToken(priv, claims))
 	return nil
 }
 
@@ -124,7 +126,7 @@ func cmdIssue(args []string) error {
 // && ligus worker …` line the developer runs verbatim. The issuer private key
 // stays here (the issuer backend); only the minted agent token leaves.
 func cmdBootstrapAgent(args []string) error {
-	var keyHex, relay, room, wsKey, sub, adminSub, label string
+	var keyHex, relayURL, room, wsKey, sub, adminSub, label string
 	role := "contributor"
 	var expDays int64 = 365
 	for i := 0; i < len(args); i++ {
@@ -139,7 +141,7 @@ func cmdBootstrapAgent(args []string) error {
 		case "--key":
 			keyHex = next()
 		case "--relay":
-			relay = next()
+			relayURL = next()
 		case "--room":
 			room = next()
 		case "--ws-key":
@@ -158,25 +160,25 @@ func cmdBootstrapAgent(args []string) error {
 			return fmt.Errorf("unknown flag %s (try `langstroth-relay help`)", args[i])
 		}
 	}
-	priv, ok := parseSigningKey(keyHex)
+	priv, ok := relay.ParseSigningKey(keyHex)
 	if !ok {
 		return fmt.Errorf("--key must be a 64-char hex Ed25519 seed (from `keygen`)")
 	}
-	if relay == "" || room == "" || sub == "" {
+	if relayURL == "" || room == "" || sub == "" {
 		return fmt.Errorf("--relay, --room, and --sub are required")
 	}
 	if label == "" {
 		label = strings.NewReplacer(":", "-", "/", "-").Replace(sub)
 	}
 	now := time.Now().Unix()
-	relay = strings.TrimRight(relay, "/")
+	relayURL = strings.TrimRight(relayURL, "/")
 
 	// Best-effort: enroll the agent in the roster via a transient admin token.
 	enrolled := false
 	if adminSub != "" {
-		adminTok := issueToken(priv, TokenClaims{Sub: adminSub, Exp: uint64(now) + 3600})
+		adminTok := relay.IssueToken(priv, relay.TokenClaims{Sub: adminSub, Exp: uint64(now) + 3600})
 		body, _ := json.Marshal(map[string]string{"account": sub, "login": "", "role": role})
-		req, _ := http.NewRequest(http.MethodPost, relay+"/v1/workspaces/"+room+"/members", bytes.NewReader(body))
+		req, _ := http.NewRequest(http.MethodPost, relayURL+"/v1/workspaces/"+room+"/members", bytes.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+adminTok)
 		req.Header.Set("Content-Type", "application/json")
 		if resp, err := http.DefaultClient.Do(req); err == nil {
@@ -186,14 +188,14 @@ func cmdBootstrapAgent(args []string) error {
 	}
 
 	// Mint the agent's identity token.
-	claims := TokenClaims{Sub: sub, Plan: "agent", Caps: []string{}}
+	claims := relay.TokenClaims{Sub: sub, Plan: "agent", Caps: []string{}}
 	if expDays >= 0 {
 		claims.Exp = uint64(now) + uint64(expDays)*86_400
 	}
-	tok := issueToken(priv, claims)
+	tok := relay.IssueToken(priv, claims)
 
 	// Assemble the hivews1 connection invite (snake_case, matching the app).
-	conn := map[string]string{"relay_url": relay, "room": room}
+	conn := map[string]string{"relay_url": relayURL, "room": room}
 	if wsKey != "" {
 		conn["key"] = wsKey
 	}
@@ -215,24 +217,4 @@ func cmdBootstrapAgent(args []string) error {
 		fmt.Fprintf(os.Stderr, "\n# NOTE: pass --admin-sub <owner-id> to auto-enroll, or add %s via the People pane. Without roster membership, writes to a claimed workspace are refused.\n", sub)
 	}
 	return nil
-}
-
-// parseSigningKey parses a 64-char-hex Ed25519 seed into a private key.
-func parseSigningKey(h string) (ed25519.PrivateKey, bool) {
-	h = strings.TrimSpace(h)
-	if len(h) != 64 || !isHex(h) {
-		return nil, false
-	}
-	seed, err := hex.DecodeString(h)
-	if err != nil || len(seed) != ed25519.SeedSize {
-		return nil, false
-	}
-	return ed25519.NewKeyFromSeed(seed), true
-}
-
-// issueToken mints a compact hrt1 token (the inverse of verifyToken).
-func issueToken(priv ed25519.PrivateKey, claims TokenClaims) string {
-	body := tokenPrefix + "." + base64.RawURLEncoding.EncodeToString(mustJSON(claims))
-	sig := ed25519.Sign(priv, []byte(body))
-	return body + "." + base64.RawURLEncoding.EncodeToString(sig)
 }

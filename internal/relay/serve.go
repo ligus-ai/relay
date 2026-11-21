@@ -15,7 +15,7 @@ import (
 // langstroth-relay — the rendezvous + envelope-forwarding server.
 //
 // Address resolution (cloud-friendly), most specific first:
-//  1. $PORT (set by Fly / Cloud Run / Railway / Heroku) → 0.0.0.0:$PORT
+//  1. $PORT (set by most PaaS hosts) → 0.0.0.0:$PORT
 //  2. $LANGSTROTH_RELAY_ADDR (full host:port)
 //  3. default 0.0.0.0:8443
 //
@@ -26,29 +26,11 @@ import (
 //
 // $LANGSTROTH_RELAY_FRIEND_CAP (optional) caps accepted friends per account.
 
-// Main runs the open relay binary (cmd/langstroth-relay).
-func Main() {
-	// Structured JSON logs (request lines come from the observability middleware).
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))
-
-	args := os.Args[1:]
-	if len(args) > 0 {
-		switch args[0] {
-		case "keygen":
-			fatalIf(cmdKeygen())
-			return
-		case "issue":
-			fatalIf(cmdIssue(args[1:]))
-			return
-		case "bootstrap-agent":
-			fatalIf(cmdBootstrapAgent(args[1:]))
-			return
-		case "help", "--help", "-h":
-			printUsage()
-			return
-		}
-	}
-
+// Serve runs the relay server until SIGINT or SIGTERM: it checks the
+// configuration, opens the store, serves HTTP and flushes on the way out. It
+// exits the process on a configuration error. cmd/langstroth-relay sets up
+// logging and handles the operator subcommands before calling it.
+func Serve() {
 	// Before anything reads a setting: a variable under a name from before
 	// the Langstroth rename (HIVE_RELAY_*, LIGUS_RELAY_*; no longer read), or
 	// an unreadable secret file (either would read as unset: push or the

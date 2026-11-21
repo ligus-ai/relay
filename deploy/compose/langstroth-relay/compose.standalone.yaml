@@ -1,0 +1,78 @@
+# Langstroth relay alone, with its built-in store: memory plus a JSON snapshot
+# on a volume, flushed every few seconds and on shutdown. One instance only;
+# for anything a team depends on, prefer compose.yaml (Postgres). Full guide:
+# docs/deploy.md.
+#
+#   cp .env.example .env
+#   docker compose -f compose.standalone.yaml up -d
+#   docker compose -f compose.standalone.yaml --profile tls up -d   # with Caddy
+#   curl -fsS localhost:8443/v1/health
+name: langstroth-relay-standalone
+
+services:
+  # The image runs as UID 65532 with no shell; a fresh named volume is owned
+  # by root, so hand it to the relay's user once before the relay starts.
+  data-owner:
+    image: busybox:1.37.0
+    command: ["chown", "-R", "65532:65532", "/data"]
+    volumes:
+      - relay-data:/data
+    network_mode: none
+
+  relay:
+    image: ghcr.io/langstroth-ai/langstroth-relay:0.3.1
+    depends_on:
+      data-owner:
+        condition: service_completed_successfully
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      LANGSTROTH_RELAY_DATA_DIR: /data
+      LANGSTROTH_RELAY_TRUSTED_PROXIES: ${RELAY_SUBNET:-172.30.53.0/24}
+      # Bound the memory store (bytes); writes past it answer 507.
+      LANGSTROTH_RELAY_MAX_STORE_BYTES: ${LANGSTROTH_RELAY_MAX_STORE_BYTES:-268435456}
+    volumes:
+      - relay-data:/data
+    ports:
+      - "${RELAY_BIND:-127.0.0.1}:8443:8443"
+    networks: [relay]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 20s
+    restart: unless-stopped
+
+  caddy:
+    profiles: [tls]
+    image: caddy:2.10.2-alpine
+    depends_on: [relay]
+    environment:
+      RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [relay]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://relay:8443/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  relay:
+    ipam:
+      config:
+        - subnet: ${RELAY_SUBNET:-172.30.53.0/24}
+
+volumes:
+  relay-data:
+  caddy-data:
+  caddy-config:

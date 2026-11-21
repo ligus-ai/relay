@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/langstroth-ai/langstroth-relay"
+	"github.com/langstroth-ai/langstroth-relay/internal/relay"
 )
 
 const scimTokenB = "scim-token-for-tenant-b-0123456789abcdef"

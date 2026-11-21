@@ -7,6 +7,6 @@
 // signed roster. See langstrothauth/ and docs (langstroth-auth).
 package main
 
-import "github.com/langstroth-ai/langstroth-relay/langstrothauth"
+import "github.com/langstroth-ai/langstroth-relay/internal/langstrothauth"
 
 func main() { langstrothauth.Main() }

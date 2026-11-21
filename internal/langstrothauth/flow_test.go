@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/langstroth-ai/langstroth-relay"
+	"github.com/langstroth-ai/langstroth-relay/internal/relay"
 )
 
 func homeHarness(t *testing.T) (*harness, *mockIdP) {

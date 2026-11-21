@@ -17,6 +17,31 @@ to v0.3.1); only who roster mode authorizes changed.
   Contributor, roster and invite management still needs Admin, a blob delete
   still needs its uploader or an Admin, and a non-member is refused as before.
 
+### Deploying
+
+- **Provider-neutral deploy options.** `docs/deploy.md` is the deploy guide:
+  one-shot sequences for Docker Compose, systemd, Helm and any platform that
+  runs a container image, plus settings, storage, TLS, backups and upgrades.
+  New `deploy/compose/langstroth-relay/` (relay + Postgres, or the relay
+  alone with its snapshot store; optional Caddy for TLS; pinned to the
+  release image, with an `.env.example`) and `deploy/systemd/` (a hardened
+  unit and env file for the static binary). The Helm chart README now starts
+  with an install from the OCI registry.
+
+### Repository layout
+
+- **The repository root holds only docs, `go.mod` and the `Dockerfile`.**
+  The relay package moved to `internal/relay` (with its tests and
+  `testdata`), `apns` and `langstrothauth` to `internal/`, the relay's
+  subcommands to `cmd/langstroth-relay`, and `entrypoint.sh` to
+  `deploy/container/`. Tests of the charts, agent scripts and workflows are
+  the `deploy` package. No behaviour, route, response or token format
+  changed (the golden `/v1` and contact tests are unchanged). The relay
+  package can no longer be imported from outside this module.
+- Removed `deploy/fly-rename-secrets.sh` and its test: a one-off script that
+  renamed one Fly app's secrets for v0.3.0. Rename old `HIVE_RELAY_*` /
+  `LIGUS_RELAY_*` settings by hand (the relay names each one at startup).
+
 ## v0.3.1
 
 A fix release. `/v1` and `hrt1` are unchanged (byte-identical to v0.3.0).

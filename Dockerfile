@@ -15,7 +15,7 @@ LABEL org.opencontainers.image.title="Langstroth Relay" \
       org.opencontainers.image.source="https://github.com/langstroth-ai/langstroth-relay" \
       org.opencontainers.image.licenses="MIT"
 COPY --from=build /out/langstroth-relay /usr/local/bin/langstroth-relay
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY deploy/container/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 # Listens on 0.0.0.0:8443 unless $PORT or LANGSTROTH_RELAY_ADDR says
 # otherwise. entrypoint.sh defaults the snapshot store to /data when

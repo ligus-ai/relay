@@ -1,0 +1,74 @@
+# systemd unit for the Langstroth relay on any Linux host. Full guide:
+# docs/deploy.md ("systemd").
+#
+#   sudo install -m 0755 langstroth-relay /usr/local/bin/langstroth-relay
+#   sudo install -d -m 0750 /etc/langstroth-relay
+#   sudo install -m 0640 langstroth-relay.env /etc/langstroth-relay/env
+#   sudo install -m 0644 langstroth-relay.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now langstroth-relay
+#   curl -fsS localhost:8443/v1/health
+#
+# The service runs as a throwaway user (DynamicUser) with no capabilities.
+# State lives in /var/lib/langstroth-relay (StateDirectory), used by the
+# snapshot store when DATABASE_URL is unset.
+
+[Unit]
+Description=Langstroth relay (end-to-end-encrypted sync relay for Ligus)
+Documentation=https://github.com/langstroth-ai/langstroth-relay/blob/main/docs/deploy.md
+Wants=network-online.target
+After=network-online.target
+# A configuration error exits 1 at startup: don't restart-loop on it forever.
+StartLimitIntervalSec=5min
+StartLimitBurst=5
+
+[Service]
+Type=exec
+ExecStart=/usr/local/bin/langstroth-relay
+EnvironmentFile=/etc/langstroth-relay/env
+# Default store when the env file sets no DATABASE_URL: memory plus a JSON
+# snapshot here. DATABASE_URL in the env file takes precedence.
+Environment=LANGSTROTH_RELAY_DATA_DIR=/var/lib/langstroth-relay
+StateDirectory=langstroth-relay
+StateDirectoryMode=0700
+DynamicUser=yes
+UMask=0077
+
+# The relay flushes its snapshot on SIGTERM; give it time.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5s
+
+# Hardening. The relay binds an unprivileged port (8443) and needs only
+# network access and its state directory.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateUsers=yes
+ProtectHostname=yes
+ProtectClock=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallErrorNumber=EPERM
+DevicePolicy=closed
+
+[Install]
+WantedBy=multi-user.target

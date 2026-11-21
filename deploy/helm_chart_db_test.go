@@ -1,4 +1,4 @@
-package relay
+package deploy
 
 import (
 	"crypto/ecdsa"

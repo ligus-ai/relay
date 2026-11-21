@@ -3,8 +3,8 @@
 > **Preview.** From relay v0.3.0 each release tag publishes this chart to
 > `oci://ghcr.io/langstroth-ai/charts/langstroth-relay` and the image to
 > `ghcr.io/langstroth-ai/langstroth-relay` (`.github/workflows/release.yml`).
-> Until a release is tagged, build the image yourself and install the chart
-> from a checkout. Values may change while the chart is in preview.
+> The chart's version matches the relay release. Values may change while the
+> chart is in preview.
 >
 > **Renamed from `ligus-relay`.** Releases installed from the `ligus-relay`
 > chart named their resources and selector labels after it. Selectors can't
@@ -43,7 +43,34 @@ Service and everything else to the sync Service. In-cluster clients use the
 two Services directly (`LIGUS_RELAY_URL` and `LIGUS_REMOTE_RELAY`); the
 install notes print both URLs.
 
-## Quick start (kind or k3d)
+## Install from the registry
+
+No checkout needed. Pin the chart version (it matches the relay release; see
+the [releases](https://github.com/langstroth-ai/langstroth-relay/releases)
+and CHANGELOG.md before upgrading).
+
+```sh
+kubectl create namespace langstroth-relay
+kubectl label namespace langstroth-relay pod-security.kubernetes.io/enforce=restricted
+# Production: an external Postgres (or database.mode=cnpg / bundled, below).
+kubectl -n langstroth-relay create secret generic relay-db \
+  --from-literal=DATABASE_URL='postgres://relay:<password>@db.example.internal:5432/relay?sslmode=verify-full'
+helm install langstroth-relay oci://ghcr.io/langstroth-ai/charts/langstroth-relay \
+  --version 0.3.1 -n langstroth-relay \
+  --set database.mode=external --set database.external.existingSecret=relay-db \
+  --set 'database.external.cidrs={10.0.0.5/32}'   # the database's address, for the egress policy
+kubectl -n langstroth-relay rollout status deploy/langstroth-relay-sync
+helm test langstroth-relay -n langstroth-relay
+```
+
+To try it without a database, leave out the `database.*` and secret lines:
+the chart runs one pod (`deploy/langstroth-relay`) on the in-memory store. Expose it with
+`ingress.enabled` or `httpRoute.enabled` (TLS at the ingress; clients require
+`https://`), and set `clientIP.trustedProxies` to the ingress's addresses.
+Upgrade with `helm upgrade ... --version <new>`; roll back with
+`helm rollback`. Every value is listed under [Values](#values).
+
+## Quick start from a checkout (kind or k3d)
 
 ```sh
 docker build -f deploy/container/Dockerfile -t langstroth-relay:dev .
@@ -452,5 +479,5 @@ database mode), renders every documented combination and the refusals,
 builds the image, installs the chart on kind (split on the deprecated dev
 Postgres, single on memory, split on the bundled Postgres with TLS, a backup
 and a restore) under Pod Security `restricted` and runs `helm test`.
-`helm_chart_test.go` and `helm_chart_db_test.go` (`go test`, needs helm)
+`deploy/helm_chart_test.go` and `deploy/helm_chart_db_test.go` (`go test`, needs helm)
 check the rendered security properties of every mode and the refusals.

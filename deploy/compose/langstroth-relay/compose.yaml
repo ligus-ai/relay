@@ -1,0 +1,92 @@
+# Langstroth relay + Postgres (the production shape). Provider-neutral: any
+# Linux host with Docker Compose v2.24 or later. Full guide: docs/deploy.md.
+#
+#   cp .env.example .env              # then edit: at least POSTGRES_PASSWORD
+#   docker compose up -d              # relay on 127.0.0.1:8443, behind your proxy
+#   docker compose --profile tls up -d  # or: also run Caddy for TLS (set RELAY_DOMAIN)
+#   curl -fsS localhost:8443/v1/health
+#
+# The relay image is pinned. Upgrade by changing the tag (read CHANGELOG.md
+# first), then `docker compose pull && docker compose up -d`.
+name: langstroth-relay
+
+services:
+  db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_USER: relay
+      POSTGRES_DB: relay
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 24)}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [relay]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relay -d relay"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+  relay:
+    image: ghcr.io/langstroth-ai/langstroth-relay:0.3.1
+    depends_on:
+      db:
+        condition: service_healthy
+    # Optional settings (access tokens, limits, tunnel, ...) come from .env;
+    # see .env.example. A setting left out of .env stays unset.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # The password goes into a URL: keep it to [A-Za-z0-9] (hex is fine).
+      DATABASE_URL: postgres://relay:${POSTGRES_PASSWORD:?}@db:5432/relay?sslmode=disable
+      # Refuse to start on the in-memory store if DATABASE_URL ever goes missing.
+      LANGSTROTH_RELAY_REQUIRE_DB: "1"
+      # Read the client address from the proxy in front (Caddy below, or one on
+      # this host reaching the published port through the network gateway).
+      LANGSTROTH_RELAY_TRUSTED_PROXIES: ${RELAY_SUBNET:-172.30.53.0/24}
+    ports:
+      - "${RELAY_BIND:-127.0.0.1}:8443:8443"
+    networks: [relay]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    # No healthcheck here: the image is distroless (no shell or HTTP client).
+    # Caddy checks it below; without Caddy, probe /v1/health from the host.
+
+  caddy:
+    profiles: [tls]
+    image: caddy:2.10.2-alpine
+    depends_on: [relay]
+    environment:
+      RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [relay]
+    healthcheck:
+      # Checks the relay through the compose network (relay:8443).
+      test: ["CMD", "wget", "-qO-", "http://relay:8443/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  relay:
+    ipam:
+      config:
+        - subnet: ${RELAY_SUBNET:-172.30.53.0/24}
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

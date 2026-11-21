@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/langstroth-ai/langstroth-relay"
+	"github.com/langstroth-ai/langstroth-relay/internal/relay"
 )
 
 // DeviceProofContext is the domain-separation prefix of the device proof a

@@ -1,7 +1,7 @@
 # CI: split topology on the bundled single-instance Postgres: TLS from a
 # Secret (the workflow makes a throwaway CA), a non-superuser role, the
 # pg_dump CronJob and the egress policy. (database.bundled.tls.certManager
-# is covered by helm_chart_db_test.go.)
+# is covered by deploy/helm_chart_db_test.go.)
 image:
   repository: langstroth-relay
   tag: ci

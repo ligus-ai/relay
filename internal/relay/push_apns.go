@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/langstroth-ai/langstroth-relay/apns"
+	"github.com/langstroth-ai/langstroth-relay/internal/apns"
 )
 
 // Built-in APNs PushSender (spec §14) for a relay run by the app's publisher.

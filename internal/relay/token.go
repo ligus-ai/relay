@@ -320,3 +320,23 @@ func tenantAllowed(tenants []string, tid string) bool {
 	}
 	return false
 }
+
+// parseSigningKey parses a 64-char-hex Ed25519 seed into a private key.
+func parseSigningKey(h string) (ed25519.PrivateKey, bool) {
+	h = strings.TrimSpace(h)
+	if len(h) != 64 || !isHex(h) {
+		return nil, false
+	}
+	seed, err := hex.DecodeString(h)
+	if err != nil || len(seed) != ed25519.SeedSize {
+		return nil, false
+	}
+	return ed25519.NewKeyFromSeed(seed), true
+}
+
+// issueToken mints a compact hrt1 token (the inverse of verifyToken).
+func issueToken(priv ed25519.PrivateKey, claims TokenClaims) string {
+	body := tokenPrefix + "." + base64.RawURLEncoding.EncodeToString(mustJSON(claims))
+	sig := ed25519.Sign(priv, []byte(body))
+	return body + "." + base64.RawURLEncoding.EncodeToString(sig)
+}

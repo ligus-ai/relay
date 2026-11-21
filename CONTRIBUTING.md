@@ -17,6 +17,26 @@ helm lint --strict deploy/helm/langstroth-relay
 CI runs the same checks and builds both images (`Dockerfile`,
 `deploy/container/Dockerfile.langstroth-auth`).
 
+## Repository layout
+
+```
+cmd/langstroth-relay/    the relay binary: subcommands (keygen, issue, bootstrap-agent, help), then relay.Serve
+cmd/langstroth-auth/     the optional sign-in service binary
+internal/relay/          the relay server package; files grouped by prefix
+                         (blobs_*, contacts_*, tunnel_*, tenancy_*, limits_*, store_*),
+                         tests beside the code, fixtures in internal/relay/testdata
+internal/langstrothauth/ the sign-in service (OIDC, SCIM, token minting)
+internal/apns/           the APNs client used for tunnel push
+internal/envalias/       former-name environment variable handling
+deploy/                  Helm charts, compose files, systemd unit, container files,
+                         agent scripts; deploy/*_test.go test these artefacts
+docs/                    operator reference
+```
+
+`/v1` and `hrt1` compatibility is pinned by the golden tests in
+`internal/relay/golden_routes_test.go` and `golden_contacts_test.go`; their
+fixtures in `internal/relay/testdata` change only for an intended wire change.
+
 ## Rules
 
 - **Keep the wire stable.** The `/v1` routes and JSON, `hrt1` tokens, the
@@ -26,7 +46,7 @@ CI runs the same checks and builds both images (`Dockerfile`,
 - **Stay content-blind.** The relay must never need a workspace key,
   plaintext, or a forge token.
 - **Refuse, don't evict.** New limits answer `429` or `507` with
-  `Retry-After` and a stable `error` code (`refusal.go`), and never drop
+  `Retry-After` and a stable `error` code (`internal/relay/refusal.go`), and never drop
   stored envelopes.
 - **Fail closed.** Settings that gate access must not silently turn off; an
   unreadable secret file stops the relay at startup.

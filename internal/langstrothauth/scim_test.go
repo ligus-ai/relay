@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/langstroth-ai/langstroth-relay"
+	"github.com/langstroth-ai/langstroth-relay/internal/relay"
 )
 
 func httptestServer(t *testing.T, h http.Handler) string {

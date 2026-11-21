@@ -12,7 +12,7 @@ import (
 // validation (secrets stubbed), so the docs never ship a config the binary
 // refuses.
 func TestExampleConfigsAreValid(t *testing.T) {
-	paths, _ := filepath.Glob("../deploy/compose/*/langstroth-auth.json")
+	paths, _ := filepath.Glob("../../deploy/compose/*/langstroth-auth.json")
 	if len(paths) == 0 {
 		t.Fatal("no example configs found")
 	}

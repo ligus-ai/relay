@@ -1,0 +1,6 @@
+# TLS for the relay (compose --profile tls). Caddy gets a certificate for
+# RELAY_DOMAIN from Let's Encrypt: point the name's DNS at this host and open
+# ports 80 and 443 first.
+{$RELAY_DOMAIN} {
+	reverse_proxy relay:8443
+}

@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/langstroth-ai/langstroth-relay"
+	"github.com/langstroth-ai/langstroth-relay/internal/relay"
 )
 
 // credentialName is the systemd credential (LoadCredential=) that holds the
