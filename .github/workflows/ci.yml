@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, "release/**"]
   pull_request:
-  # deploy.yml and release.yml run this first on a release tag.
+  # release.yml runs this first on a release tag.
   workflow_call:
 
 permissions:

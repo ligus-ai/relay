@@ -41,6 +41,11 @@ to v0.3.1); only who roster mode authorizes changed.
 - Removed `deploy/fly-rename-secrets.sh` and its test: a one-off script that
   renamed one Fly app's secrets for v0.3.0. Rename old `HIVE_RELAY_*` /
   `LIGUS_RELAY_*` settings by hand (the relay names each one at startup).
+- Removed `deploy/fly.toml` and `.github/workflows/deploy.yml`: the
+  community relay's own deployment now lives outside this repository, and a
+  release tag no longer deploys anything. To run the relay on Fly.io or any
+  other platform, use the release image as described in `docs/deploy.md`
+  ("Running on a PaaS").
 
 ## v0.3.1
 

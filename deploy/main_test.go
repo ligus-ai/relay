@@ -1,5 +1,5 @@
 // Package deploy holds no code: its tests check the deployment artefacts
-// (Helm charts, the agent scripts under deploy/agent, the container and Fly
+// (Helm charts, the agent scripts under deploy/agent, the container
 // config and the GitHub workflows) rather than the relay itself.
 package deploy
 
